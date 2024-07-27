@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Create Post</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/create.css">
+</head>
+
+<body>
+    <script src="static/scripts.js"></script>
+    <div class="create-post-container" id="create-post-container">
+        <div id="darkmod">
+            <span class="theme-mode">
+                <a role="button" id="themeToggle" title="Tema Değiştir" href="javascript:void(0);">🌓
+                    <i id="themeIcon" class="fas fa-sun"></i></a>
+            </span>
+        </div>
+        
+        <h1>Create Post</h1>
+        <button class="close-btn" onclick="closeCreatePost()">×</button>
+        <form action="/createPost" method="post" enctype="multipart/form-data">
+            <div class="form-top">
+                <input type="file" id="image" name="image" accept=".jpg, .jpeg, .png, .gif">
+
+                <div>
+                    <label for="title">Title</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+                <div id="searchkategori">
+                    <div id="searchkategoribox">
+                        <div class="form-right">
+                            <div class="search-container">
+                                <input type="text" id="searchBox" placeholder="Kategori Ara...">
+                            </div>
+                            <div id="resultsContainer" class="dropdown-container">
+                            </div>
+                        </div>
+                        <div id="searchkategoribilgi">
+                            <div id="selectedLanguagesContainer">
+                                <h3>Seçilen Kategoriler:</h3>
+                                <div id="selectedLanguagesList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <label for="content">Content</label>
+            <textarea id="content" name="content" maxlength="600" required></textarea>
+
+            <input type="hidden" id="categoriesInput" name="categories">
+            <br><br>
+            <button class="form-buttons" type="submit">Create Post</button>
+            <button class="form-buttons" type="button" id="clearButton">Temizle</button>
+        </form>
+    </div>
+
+    <script>
+        function closeCreatePost() {
+            window.location.href = 'index.html';
+        }
+
+        // Tüm dropdownları kapatan fonksiyon
+        function closeAllDropdowns() {
+            const dropdowns = document.querySelectorAll('.dropdown-container');
+            dropdowns.forEach(dropdown => {
+                dropdown.style.display = 'none';
+            });
+        }
+
+        // Sayfa üzerinde herhangi bir yere tıklandığında dropdown'ları kontrol eden event listener
+        document.addEventListener('click', function (event) {
+            const isClickInsideDropdown = document.getElementById('resultsContainer').contains(event.target);
+            if (!isClickInsideDropdown) {
+                closeAllDropdowns();
+            }
+        });
+
+        // Temizle butonunu hedefle
+        const clearButton = document.getElementById('clearButton');
+
+        // Temizle butonuna tıklanınca sadece seçilen kategorileri temizle
+        clearButton.addEventListener('click', function () {
+            const selectedLanguagesList = document.getElementById('selectedLanguagesList');
+            selectedLanguagesList.innerHTML = ''; // Seçilen kategoriler listesini temizle
+            updateCategoriesInput();
+        });
+        // Kategoriler penceresini açan fonksiyon
+        function openCategoriesDropdown() {
+            document.getElementById('resultsContainer').style.display = 'block';
+        }
+
+        // Kategoriler penceresini kapatan fonksiyon
+        function closeCategoriesDropdown() {
+            document.getElementById('resultsContainer').style.display = 'none';
+        }
+
+        // Sayfa üzerinde herhangi bir yere tıklandığında dropdown'ı kontrol eden event listener
+        document.addEventListener('click', function (event) {
+            const dropdownButton = document.getElementById('searchBox');
+            const dropdownContainer = document.getElementById('resultsContainer');
+
+            if (event.target === dropdownButton || dropdownContainer.contains(event.target)) {
+                openCategoriesDropdown();
+            } else {
+                closeCategoriesDropdown();
+            }
+        });
+
+
+        // Dropdown ve arama fonksiyonları
+        const searchBox = document.getElementById('searchBox');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const selectedLanguagesList = document.getElementById('selectedLanguagesList');
+        const categories = ['Database', 'Programming', 'Artificial Intelligence', 'Game Engines', 'Robotic Systems',
+            'React Native', 'Cyber Security'
+        ];
+
+        searchBox.addEventListener('focus', function () {
+            displayInitialCategories();
+        });
+
+        searchBox.addEventListener('input', function () {
+            const query = this.value.toLowerCase();
+            resultsContainer.innerHTML = ''; // Clear previous results
+
+            if (query.length > 0) {
+                resultsContainer.style.display = 'block'; // Show the container if there's a query
+
+                const filteredCategories = categories.filter(category => category.toLowerCase().includes(
+                    query));
+
+                filteredCategories.forEach(category => {
+                    const item = document.createElement('div');
+                    item.className = 'dropdown-item';
+                    item.textContent = category;
+                    item.addEventListener('click', function () {
+                        selectCategory(category);
+                    });
+                    resultsContainer.appendChild(item);
+                });
+            } else {
+                displayInitialCategories();
+            }
+        });
+
+        function displayInitialCategories() {
+            resultsContainer.innerHTML = '';
+            resultsContainer.style.display = 'block';
+
+            // Tüm kategorileri listele
+            categories.forEach(category => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                item.textContent = category;
+                item.addEventListener('click', function () {
+                    selectCategory(category);
+                });
+                resultsContainer.appendChild(item);
+            });
+        }
+
+        function selectCategory(category) {
+            const selectedCategories = Array.from(selectedLanguagesList.children).map(item => item.textContent);
+
+            if (selectedCategories.includes(category)) {
+                alert("Bu kategori zaten seçildi.");
+                return;
+            }
+
+            if (selectedCategories.length < 3) {
+                const selectedCategory = document.createElement('span');
+                selectedCategory.className = 'dropdown-item';
+                selectedCategory.textContent = category;
+                selectedCategory.addEventListener('click', function () {
+                    selectedLanguagesList.removeChild(selectedCategory);
+                    updateCategoriesInput();
+                });
+                selectedLanguagesList.appendChild(selectedCategory);
+                updateCategoriesInput();
+            } else {
+                alert("En fazla 3 kategori seçebilirsiniz.");
+            }
+        }
+
+        // Create Post butonunu hedefle
+        const createPostButton = document.querySelector('.create-post-button');
+
+        // Create Post butonuna tıklandığında
+        createPostButton.addEventListener('click', function (event) {
+            event.preventDefault(); // Formun otomatik olarak gönderilmesini engelle
+            const form = document.querySelector('form');
+            const title = form.title.value;
+            const content = form.content.value;
+            const categories = Array.from(document.querySelectorAll('#selectedLanguagesList .dropdown-item'))
+                .map(item => item.textContent);
+
+            // Kategori verilerini formun hidden bir alanına ekleyin
+            const categoriesInput = document.createElement('input');
+            categoriesInput.type = 'hidden';
+            categoriesInput.name = 'categories';
+            categoriesInput.value = JSON.stringify(categories);
+            form.appendChild(categoriesInput);
+
+            form.submit(); // Formu gönder
+        });
+
+
+
+        function selectCategory(category) {
+            const selectedCategories = Array.from(selectedLanguagesList.children).map(item => item.textContent);
+
+            if (selectedCategories.includes(category)) {
+                alert("Bu kategori zaten seçildi.");
+                return;
+            }
+
+            if (selectedLanguagesList.children.length >= 3) { // Changed to >=
+                alert("En fazla 3 kategori seçebilirsiniz.");
+                return; // Added return to stop execution
+            }
+
+            const selectedCategory = document.createElement('span');
+            selectedCategory.className = 'dropdown-item';
+            selectedCategory.textContent = category;
+            selectedCategory.addEventListener('click', function () {
+                selectedLanguagesList.removeChild(selectedCategory);
+                updateCategoriesInput();
+            });
+            selectedLanguagesList.appendChild(selectedCategory);
+            updateCategoriesInput();
+        }
+
+
+        function updateCategoriesInput() {
+            const selectedCategories = Array.from(selectedLanguagesList.children).map(item => item.textContent);
+            document.getElementById('categoriesInput').value = JSON.stringify(selectedCategories);
+        }
+
+        function changeTheme(theme) {
+            document.body.classList.remove('light-mode', 'night-mode');
+            document.body.classList.add(theme + '-mode');
+            localStorage.setItem("tema", theme);
+        }
+
+        // Tema ayarları
+        window.onload = function () {
+            let tema = localStorage.getItem("tema") || "light";
+            document.body.classList.add(tema + "-mode");
+        };
+
+        document.getElementById('themeToggle').addEventListener('click', function () {
+            const currentTheme = document.body.classList.contains('light-mode') ? 'night-mode' : 'light-mode';
+            changeTheme(currentTheme);
+        });
+    </script>
+
+<script>
+    const forms = document.querySelectorAll('form[enctype="multipart/form-data"]');
+
+    forms.forEach(form => {
+        form.addEventListener('submit', function(event) {
+            const fileInput = form.querySelector('input[type="file"]');
+            const file = fileInput.files[0];
+
+            if (file && file.size > 20 * 1024 * 1024) { // 20 MB kontrolü
+                event.preventDefault(); // Form gönderimini engelle
+                alert("File size exceeds limit (20MB)."); // Uyarı mesajı göster
+            }
+        });
+    });
+</script>
+
+</body>
+
+</html>

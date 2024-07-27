@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/login.css">
+</head>
+
+<body>
+    <!-- Scripts etiketi -->
+    <script src="/static/scripts.js"></script>
+    <!-- Giriş container'ı -->
+    <div class="login-container" id="login-container">
+        <!-- Tema değiştirme düğmesi -->
+        <span class="theme-mode">
+            <a role="button" id="themeToggle" title="Tema Değiştir" href="javascript:void(0);">🌓
+                <i id="themeIcon" class="fas fa-sun"></i></a>
+        </span>
+        <!-- Kapat düğmesi -->
+        <button class="close-btn" onclick="closeLogin()">×</button>
+        <!-- Başlık -->
+        <h1>Login</h1>
+        <!-- Giriş formu -->
+        <form action="/login" method="post">
+            <!-- Email girişi -->
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required>
+            <!-- Şifre girişi -->
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+            <!-- Giriş düğmesi -->
+            <button type="submit">Login</button>
+        </form>
+        <br>
+        <!-- Google ile giriş düğmesi -->
+        <div id="buttongiriscont">
+            <div id="buttongirisgoogle">
+                <a href="/google/login"><button class="google-btn"><img src="/static/png/google.png" width="50%"
+                            height="20%"></button></a>
+            </div>
+            <div id="buttongirisgithub">
+                <a href="/github/login"><button class="github-btn"><img src="/static/png/github.png" width="50%"
+                            height="20%"></button></a>
+            </div>
+            <div id="buttongirisfacebook">
+                <a href="/facebook/login"><button class="facebook-btn"><img src="/static/png/facebook.png" width="50%"
+                            height="20%"></button></a>
+            </div>
+
+        </div>
+
+        <p class="mavi-yazi"><a href="/register">Don't you have a subscription?</a></p>
+    </div>
+
+    <script>
+        // Sayfa yüklendiğinde temayı ayarla
+        window.onload = function () {
+            let tema = localStorage.getItem("tema") || "light"; // Varsayılan tema
+            document.body.classList.add(tema + "-mode"); // Varsa "light-mode" veya "dark-mode" ekle
+        };
+
+        // Tema değiştirme düğmesini dinle
+        document.getElementById('themeToggle').addEventListener('click', function () {
+            const currentTheme = document.body.classList.contains('light-mode') ? 'night-mode' : 'light-mode';
+            changeTheme(currentTheme);
+        });
+
+        // Giriş sayfasına yönlendirme fonksiyonu
+        function closeLogin() {
+            window.location.href = 'index.html';
+        }
+    </script>
+<script>
+    // Hata mesajlarını tutacak bir değişken
+    var errorMessages = {
+        "Email": "" // Başlangıçta boş bir hata mesajı
+    };
+    // Kayıt formunu gönderirken kontrol yapacak fonksiyon
+    function validateForm() {
+        var email = document.getElementById("email").value;
+
+        // E-posta zaten kayıtlıysa hata göster
+        if (errorMessages["Email"] !== "") {
+            alert(errorMessages["Email"]);
+            return false; // Formu gönderme
+        }
+
+        return true; // Formu gönder
+    }
+</script>
+
+</body>
+
+</html>

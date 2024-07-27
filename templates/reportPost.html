@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <title>Report Post</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="static/css/style.css">
+</head>
+
+<body>
+    <div id="reportFormContainer">
+        <h2>Report Post</h2>
+        <form action="/reportPost" method="post">
+            <input type="hidden" name="post_id" value="{{.PostID}}">
+            <div>
+                <label for="reason">Select a reason:</label>
+                <select name="reason" id="reason" required>
+                    <option value="">Select a reason</option>
+                    <option value="Inappropriate Content">Inappropriate Content</option>
+                    <option value="Spam">Spam</option>
+                    <option value="Harassment">Harassment</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div>
+                <label for="details">Additional details (optional):</label>
+                <textarea name="details" id="details" rows="4"></textarea>
+            </div>
+            <div>
+                <button type="submit">Submit Report</button>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>

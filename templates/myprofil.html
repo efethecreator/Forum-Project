@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/static/css/myprofil.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/bar.css">
+    <title>Document</title>
+</head>
+
+<body>
+
+    <!-- Üst çubuk -->
+    <div id="bigbar">
+        <div id="düzenbar">
+            <div id="bar">
+                <!-- Logo -->
+                <a href="index.html" id="logo"
+                    style="background-image: url('/static/png/logo.png'); background-repeat: no-repeat; background-size: contain; width: 15%; height: 100%;"></a>
+
+                <input type="text" id="searchBox" placeholder="search now" onkeyup="searchPosts()">
+                <div id="darkmod">
+                    <!-- Tema değiştirme düğmesi -->
+                    <span class="theme-mode">
+                        <a role="button" id="themeToggle" title="Tema Değiştir" href="javascript:void(0);">🌓
+                            <i id="themeIcon" class="fas fa-sun"></i></a>
+                    </span>
+                </div>
+                <div id="girişbar">
+                    <nav>
+                        <a href="/logout" id="logoutButton" class="button">Log Out</a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="görünmezbar"></div>
+    <!-- Profil container -->
+    <div id="profileContainer">
+        <div id="profileRight">
+            <h2 id="profileName">{{ if .User.Username.Valid }}{{ .User.Username.String }}{{ else }}{{ "N/A" }}{{ end }}</h2>
+            <div id="profileInfo">
+                <p><strong>Email:</strong> {{.User.Email}}</p>
+            </div>
+        </div>
+    </div>
+    <!-- Profil İstatistikleri -->
+    <div id="postsContainer">
+        <ul class="tabs">
+            <li class="tab active" data-tab="ownPosts">Own Posts</li>
+            <li class="tab" data-tab="likedPosts">Liked Posts</li>
+        </ul>
+
+        <div id="ownPosts" class="tab-content active">
+            {{range .OwnPosts}}
+            <div id="centercont">
+                <li>{{.Title}} - {{.Content}}</li>
+                <br><br>
+                {{.CreatedAtFormatted}} &nbsp; {{.LikeCount}} Likes {{.DislikeCount}} Dislikes {{.CommentCount}} Comments
+                <form id="deletePostForm" action="/deletePost" method="post">
+                    <input type="hidden" name="post_id" value="{{.ID}}">
+                    <button type="submit">
+                        <img src="/static/png/delete.png" alt="Delete">
+                    </button>
+                </form>
+            </div>
+            {{else}}
+            <p>Henüz hiçbir post oluşturmadınız.</p>
+            {{end}}
+        </div>
+
+        <div id="likedPosts" class="tab-content">
+            {{range .LikedPosts}}
+            <div id="centercont">
+                <li> {{.Title}} - {{.Content}}</li>
+                <br><br>
+                {{.CreatedAtFormatted}} &nbsp; {{.LikeCount}} Likes {{.DislikeCount}} Dislikes {{.CommentCount}} Comments
+                <form id="deletePostForm" action="/deletePost" method="post">
+                    <input type="hidden" name="post_id" value="{{.ID}}">
+                    <button type="submit">
+                        <img src="/static/png/delete.png" alt="Delete">
+                    </button>
+                </form>
+            </div>
+            {{else}}
+            <p>Henüz hiçbir gönderiyi beğenmediniz.</p>
+            {{end}}
+        </div>
+    </div>
+
+    <!-- JS betikleri, bunu çıkarınca tema çalışmıyor -->
+    <script src="/Web/static/scripts.js"></script>
+    <!-- Tema değiştirme betiği -->
+    <script>
+        // Sayfa yüklendiğinde temayı ayarla
+        window.onload = function () {
+            let tema = localStorage.getItem("tema") || "light"; // Varsayılan tema
+            document.body.classList.add(tema + "-mode"); // Varsa "light-mode" veya "dark-mode" ekle
+        };
+
+        // Tema değiştirme düğmesini dinle
+        document.getElementById('themeToggle').addEventListener('click', function () {
+            const currentTheme = document.body.classList.contains('light-mode') ? 'night-mode' : 'light-mode';
+            changeTheme(currentTheme);
+        });
+
+        // Giriş sayfasına yönlendirme fonksiyonu
+        function closeLogin() {
+            window.location.href = 'index.html';
+        }
+
+        // Tab değişimlerini dinle
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.dataset.tab;
+
+                // Aktif sekmenin sınıfını güncelle
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Aktif sekmenin içeriğini göster
+                tabContents.forEach(content => {
+                    if (content.id === tabId) {
+                        content.classList.add('active');
+                        console.log(tabId +
+                            " içeriği gösteriliyor."
+                        ); // Tıklanan sekmenin ID'sini konsola yazdırın
+                    } else {
+                        content.classList.remove('active');
+                        console.log(content.id +
+                            " içeriği gizleniyor."
+                        ); // Tıklanan sekmenin ID'sini konsola yazdırın
+                    }
+                });
+            });
+        });
+
+        // Liked Posts sekmesi dinleyicisi
+        document.querySelector('[data-tab="likedPosts"]').addEventListener('click', function () {
+            const tabId = this.getAttribute('data-tab');
+
+            // Aktif sekmenin sınıfını güncelle
+            document.querySelector('.tab.active').classList.remove('active');
+            this.classList.add('active');
+
+            // Aktif sekmenin içeriğini göster
+            document.querySelector('.tab-content.active').classList.remove('active');
+            document.getElementById(tabId).classList.add('active');
+        });
+    </script>
+
+<script>
+    // Profil fotoğrafı yükleme formu gönderme
+    document.getElementById('uploadForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        
+        const formData = new FormData(this);
+        const xhr = new XMLHttpRequest();
+
+        xhr.open('POST', '/uploadProfilePicture', true);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                // Yükleme başarılıysa, fotoğrafı güncelle
+                document.getElementById('profilePicture').src = '/uploads/' + xhr.responseText;
+            } else {
+                alert('Profil resmi yüklenemedi.');
+            }
+        };
+        xhr.send(formData);
+    });
+</script>
+</body>
+
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit User</title>
+</head>
+<body>
+    <header>
+        <h1>Edit User</h1>
+    </header>
+    <main>
+        <form action="/users/update/{{.User.ID}}" method="post">
+            <div>
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" value="{{.User.Email}}" required>
+            </div>
+            <div>
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" value="{{.User.Username}}" required>
+            </div>
+            <div>
+                <label for="role">Role:</label>
+                <select id="role" name="role" required>
+                    <option value="user" {{if eq .User.Role "user"}}selected{{end}}>User</option>
+                    <option value="moderator" {{if eq .User.Role "moderator"}}selected{{end}}>Moderator</option>
+                    <option value="admin" {{if eq .User.Role "admin"}}selected{{end}}>Admin</option>
+                </select>
+            </div>
+            <div>
+                <button type="submit">Update User</button>
+            </div>
+        </form>
+    </main>
+</body>
+</html>
