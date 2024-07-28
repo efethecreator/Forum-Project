@@ -180,7 +180,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	// Kullanıcının admin olup olmadığını kontrol et
 	isAdmin := false
 	if session != nil {
-		isAdmin, err = checkIfAdmin(int64(session.UserID))
+		isAdmin, err = CheckIfAdmin(int64(session.UserID))
 		if err != nil {
 			utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
 			return
@@ -1109,8 +1109,8 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Admin olup olmadığını kontrol et
-	isAdmin, err := checkIfAdmin(int64(session.UserID)) // int dönüşümü
-	if (err != nil || !isAdmin) {
+	isAdmin, err := CheckIfAdmin(int64(session.UserID)) // int dönüşümü
+	if err != nil || !isAdmin {
 		http.Redirect(w, r, "/", http.StatusForbidden)
 		return
 	}
@@ -1148,71 +1148,72 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
-func checkIfAdmin(userID int64) (bool, error) {
+func CheckIfAdmin(userID int64) (bool, error) {
 	var role string
 	err := datahandlers.DB.QueryRow("SELECT role FROM users WHERE id = ?", userID).Scan(&role)
 	if err != nil {
-		return false, err
+		if err == sql.ErrNoRows {
+			return false, nil // Kullanıcı bulunamadıysa admin değil
+		}
+		return false, err // Veritabanı hatası
 	}
 	return role == "admin", nil
 }
 
 func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
-    userIDStr := strings.TrimPrefix(r.URL.Path, "/users/delete/")
-    userID, err := strconv.Atoi(userIDStr)
-    if err != nil {
-        utils.HandleErr(w, err, "Invalid user ID", http.StatusBadRequest)
-        return
-    }
+	userIDStr := strings.TrimPrefix(r.URL.Path, "/users/delete/")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		utils.HandleErr(w, err, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
 
-    // Kullanıcı bilgilerini alın
-    user, err := getUserByID(userID)
-    if err != nil {
-        utils.HandleErr(w, err, "User not found", http.StatusNotFound)
-        return
-    }
+	// Kullanıcı bilgilerini alın
+	user, err := getUserByID(userID)
+	if err != nil {
+		utils.HandleErr(w, err, "User not found", http.StatusNotFound)
+		return
+	}
 
-    // Transaction başlat
-    tx, err := datahandlers.DB.Begin()
-    if err != nil {
-        utils.HandleErr(w, err, "Failed to begin transaction", http.StatusInternalServerError)
-        return
-    }
+	// Transaction başlat
+	tx, err := datahandlers.DB.Begin()
+	if err != nil {
+		utils.HandleErr(w, err, "Failed to begin transaction", http.StatusInternalServerError)
+		return
+	}
 
-    defer func() {
-        if r := recover(); r != nil {
-            tx.Rollback()
-            panic(r)
-        }
-    }()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
 
-    // Kullanıcıyı users tablosundan sil
-    _, err = tx.Exec("DELETE FROM users WHERE id = ?", userID)
-    if err != nil {
-        tx.Rollback()
-        utils.HandleErr(w, err, "Failed to delete user", http.StatusInternalServerError)
-        return
-    }
+	// Kullanıcıyı users tablosundan sil
+	_, err = tx.Exec("DELETE FROM users WHERE id = ?", userID)
+	if err != nil {
+		tx.Rollback()
+		utils.HandleErr(w, err, "Failed to delete user", http.StatusInternalServerError)
+		return
+	}
 
-    // Kullanıcıyı banned_users tablosuna ekle
-    _, err = tx.Exec("INSERT INTO banned_users (email) VALUES (?)", user.Email)
-    if err != nil {
-        tx.Rollback()
-        utils.HandleErr(w, err, "Failed to ban user", http.StatusInternalServerError)
-        return
-    }
+	// Kullanıcıyı banned_users tablosuna ekle
+	_, err = tx.Exec("INSERT INTO banned_users (email) VALUES (?)", user.Email)
+	if err != nil {
+		tx.Rollback()
+		utils.HandleErr(w, err, "Failed to ban user", http.StatusInternalServerError)
+		return
+	}
 
-    // Transaction'ı commit et
-    err = tx.Commit()
-    if err != nil {
-        utils.HandleErr(w, err, "Failed to commit transaction", http.StatusInternalServerError)
-        return
-    }
+	// Transaction'ı commit et
+	err = tx.Commit()
+	if err != nil {
+		utils.HandleErr(w, err, "Failed to commit transaction", http.StatusInternalServerError)
+		return
+	}
 
-    http.Redirect(w, r, "/admin", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
-
 
 func checkIfBanned(email string) (bool, error) {
 	var exists bool

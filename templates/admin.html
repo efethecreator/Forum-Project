@@ -19,7 +19,6 @@
     <main>
         <section id="manage-posts">
             <h2>Manage Posts</h2>
-            <!-- Add your post management functionalities here -->
             <p>Here you can create, update, and delete posts.</p>
             <table>
                 <thead>
@@ -39,8 +38,7 @@
                             <td>{{.Content}}</td>
                             <td>{{.CreatedAt}}</td>
                             <td>
-                                <form method="POST" action="/deletePost" onsubmit="return confirm('Are you sure you want to delete this post?');">
-                                    <input type="hidden" name="post_id" value="{{.ID}}">
+                                <form method="POST" action="/posts/delete/{{.ID}}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this post?');">
                                     <button type="submit">Delete</button>
                                 </form>
                             </td>
@@ -51,7 +49,6 @@
         </section>
         <section id="manage-users">
             <h2>Manage Users</h2>
-            <!-- Add your user management functionalities here -->
             <p>Here you can create, update, and delete users.</p>
             <table>
                 <thead>

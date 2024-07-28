@@ -12,9 +12,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"form-project/datahandlers"
+	"form-project/homehandlers"
 	"form-project/utils"
 
 	"github.com/google/uuid"
@@ -271,37 +273,26 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postID := r.FormValue("post_id")
+	// Admin olup olmadığını kontrol et
+	isAdmin, err := homehandlers.CheckIfAdmin(int64(session.UserID)) // int dönüşümü
+	if err != nil || !isAdmin {
+		http.Redirect(w, r, "/", http.StatusForbidden)
+		return
+	}
+
+	postID := strings.TrimPrefix(r.URL.Path, "/posts/delete/")
 	if postID == "" {
 		http.Error(w, "Post ID is required", http.StatusBadRequest)
 		return
 	}
 
-	var userID int
-	err = datahandlers.DB.QueryRow("SELECT user_id FROM posts WHERE id = ?", postID).Scan(&userID)
-	if err != nil {
-		utils.HandleErr(w, err, "Post not found", http.StatusNotFound)
-		return
-	}
-
-	if userID != session.UserID {
-		// Set a cookie with the error message for the alert
-		http.SetCookie(w, &http.Cookie{
-			Name:  "delete_error",
-			Value: "You can only delete your own posts",
-			Path:  "/", // Make sure the cookie is accessible on all pages
-		})
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
-
-	_, err = datahandlers.DB.Exec("UPDATE posts SET deleted = 1 WHERE id = ?", postID)
+	_, err = datahandlers.DB.Exec("DELETE FROM posts WHERE id = ?", postID)
 	if err != nil {
 		utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
 
 // Belirli bir yorumu silmek için kullanılan HTTP işleyicisidir.
