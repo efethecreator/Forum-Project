@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +40,7 @@ type User struct {
 	ID                 int            `validate:"-"`
 	Email              string         `validate:"required,email"`
 	Username           sql.NullString // Google kayıtta bazen boş olabilir
+	Role               string
 	Password           sql.NullString // Google kayıtta şifre alanı gereksiz olabilir
 	ProfilePicturePath sql.NullString // Profil fotoğrafının yolu
 }
@@ -168,11 +170,43 @@ func getLikedPosts(userID int) ([]Post, error) {
 	return posts, nil
 }
 
+func EditUserHandler(w http.ResponseWriter, r *http.Request) {
+	userIDStr := strings.TrimPrefix(r.URL.Path, "/users/edit/")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		utils.HandleErr(w, err, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	user, err := getUserByID(userID)
+	if err != nil {
+		utils.HandleErr(w, err, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	tmpl, err := template.ParseFiles("templates/edit_user.html")
+	if err != nil {
+		utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		User *User
+	}{
+		User: user,
+	}
+
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
 // Belirtilen kullanıcı ID'sine sahip kullanıcıyı veritabanından çeker.
 func getUserByID(userID int) (*User, error) {
 	var user User
-	query := "SELECT id, email, username, password, profile_picture_path FROM users WHERE id = ?"
-	err := datahandlers.DB.QueryRow(query, userID).Scan(&user.ID, &user.Email, &user.Username, &user.Password, &user.ProfilePicturePath)
+	query := "SELECT id, email, username, role FROM users WHERE id = ?"
+	err := datahandlers.DB.QueryRow(query, userID).Scan(&user.ID, &user.Email, &user.Username, &user.Role)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("user with ID %d not found", userID)

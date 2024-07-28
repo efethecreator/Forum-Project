@@ -17,7 +17,7 @@
             </div>
             <div>
                 <label for="username">Username:</label>
-                <input type="text" id="username" name="username" value="{{.User.Username}}" required>
+                <input type="text" id="username" name="username" value="{{if .User.Username.Valid}}{{.User.Username.String}}{{end}}" required>
             </div>
             <div>
                 <label for="role">Role:</label>

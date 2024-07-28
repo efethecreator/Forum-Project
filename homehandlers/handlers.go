@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -31,8 +32,8 @@ type User struct {
 	ID       int            `validate:"-"`
 	Email    string         `validate:"required,email"`
 	Username sql.NullString // Google kayıtta bazen boş olabilir
+	Role     string
 	Password sql.NullString // Google kayıtta şifre alanı gereksiz olabilir
-	Role     string         // Kullanıcının rolleri; 0: Normal, 1: Admin, 2: Moderator
 }
 
 type Post struct {
@@ -1069,7 +1070,7 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Admin olup olmadığını kontrol et
-	isAdmin, err := checkIfAdmin(int64(session.UserID)) // int dönüşümü
+	isAdmin, err := checkIfAdmin(int64(session.UserID))
 	if err != nil || !isAdmin {
 		http.Redirect(w, r, "/", http.StatusForbidden)
 		return
@@ -1117,22 +1118,6 @@ func checkIfAdmin(userID int64) (bool, error) {
 	return role == "admin", nil
 }
 
-func EditUserHandler(w http.ResponseWriter, r *http.Request) {
-	userID := strings.TrimPrefix(r.URL.Path, "/users/edit/")
-
-	var user User
-	err := datahandlers.DB.QueryRow("SELECT id, email, username, role FROM users WHERE id = ?", userID).Scan(&user.ID, &user.Email, &user.Username, &user.Role)
-	if err != nil {
-		utils.HandleErr(w, err, "User not found", http.StatusNotFound)
-		return
-	}
-
-	tmpl := template.Must(template.ParseFiles("templates/edit_user.html"))
-	tmpl.Execute(w, map[string]interface{}{
-		"User": user,
-	})
-}
-
 // Kullanıcı bilgilerini güncelleyen handler
 func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	userID := strings.TrimPrefix(r.URL.Path, "/users/update/")
@@ -1152,7 +1137,7 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // getUsers, tüm kullanıcıları veritabanından alır
 func getUsers() ([]User, error) {
-	rows, err := datahandlers.DB.Query("SELECT id, email, username FROM users")
+	rows, err := datahandlers.DB.Query("SELECT id, email, username, role FROM users")
 	if err != nil {
 		return nil, err
 	}
@@ -1161,12 +1146,58 @@ func getUsers() ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.ID, &user.Email, &user.Username); err != nil {
+		if err := rows.Scan(&user.ID, &user.Email, &user.Username, &user.Role); err != nil {
 			return nil, err
 		}
 		users = append(users, user)
 	}
 	return users, nil
+}
+
+func EditUserHandler(w http.ResponseWriter, r *http.Request) {
+	userIDStr := strings.TrimPrefix(r.URL.Path, "/users/edit/")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		utils.HandleErr(w, err, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	user, err := getUserByID(userID)
+	if err != nil {
+		utils.HandleErr(w, err, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	tmpl, err := template.ParseFiles("templates/edit_user.html")
+	if err != nil {
+		utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		User *User
+	}{
+		User: user,
+	}
+
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// Belirtilen kullanıcı ID'sine sahip kullanıcıyı veritabanından çeker.
+func getUserByID(userID int) (*User, error) {
+	var user User
+	query := "SELECT id, email, username, role FROM users WHERE id = ?"
+	err := datahandlers.DB.QueryRow(query, userID).Scan(&user.ID, &user.Email, &user.Username, &user.Role)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("user with ID %d not found", userID)
+		}
+		return nil, err
+	}
+	return &user, nil
 }
 
 // getPosts, tüm gönderileri veritabanından alır

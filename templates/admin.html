@@ -19,7 +19,6 @@
     <main>
         <section id="manage-posts">
             <h2>Manage Posts</h2>
-            <!-- Add your post management functionalities here -->
             <p>Here you can create, update, and delete posts.</p>
             <table>
                 <thead>
@@ -51,7 +50,6 @@
         </section>
         <section id="manage-users">
             <h2>Manage Users</h2>
-            <!-- Add your user management functionalities here -->
             <p>Here you can create, update, and delete users.</p>
             <table>
                 <thead>
@@ -68,7 +66,7 @@
                         <tr>
                             <td>{{.ID}}</td>
                             <td>{{.Email}}</td>
-                            <td>{{.Username}}</td>
+                            <td>{{if .Username.Valid}}{{.Username.String}}{{else}}N/A{{end}}</td>
                             <td>{{.Role}}</td>
                             <td>
                                 <form method="GET" action="/users/edit/{{.ID}}" style="display:inline;">
