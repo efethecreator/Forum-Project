@@ -511,6 +511,26 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		password := r.FormValue("password")
 		googleOAuth := r.FormValue("google_oauth")
 
+		// Kullanıcının banlı olup olmadığını kontrol et
+		banned, err := checkIfBanned(email)
+		if err != nil {
+			utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		if banned {
+			tmplData.Error = "Bu kullanıcı banlanmış."
+			tmpl, err := template.ParseFiles("templates/login.html")
+			if err != nil {
+				utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			err = tmpl.Execute(w, tmplData)
+			if err != nil {
+				utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+			}
+			return
+		}
+
 		if googleOAuth == "true" {
 			// Google OAuth ile giriş yapma işlemleri
 			code := r.FormValue("code")
@@ -560,15 +580,34 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 			err := datahandlers.DB.QueryRow("SELECT id, password FROM users WHERE email = ?", email).Scan(&id, &hashedPassword)
 			if err != nil {
 				if err == sql.ErrNoRows {
-					tmplData.Error = "Geçersiz e-posta veya şifre" // Hata mesajını tmplData'ya atayın
+					tmplData.Error = "Geçersiz e-posta veya şifre"
 				} else {
+					utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+				}
+				tmpl, err := template.ParseFiles("templates/login.html")
+				if err != nil {
+					utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+					return
+				}
+				err = tmpl.Execute(w, tmplData)
+				if err != nil {
 					utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
 				}
 				return
 			}
+
 			err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 			if err != nil {
-				tmplData.Error = "Geçersiz e-posta veya şifre" // Hata mesajını tmplData'ya atayın
+				tmplData.Error = "Geçersiz e-posta veya şifre"
+				tmpl, err := template.ParseFiles("templates/login.html")
+				if err != nil {
+					utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+					return
+				}
+				err = tmpl.Execute(w, tmplData)
+				if err != nil {
+					utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+				}
 				return
 			}
 
@@ -1070,8 +1109,8 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Admin olup olmadığını kontrol et
-	isAdmin, err := checkIfAdmin(int64(session.UserID))
-	if err != nil || !isAdmin {
+	isAdmin, err := checkIfAdmin(int64(session.UserID)) // int dönüşümü
+	if (err != nil || !isAdmin) {
 		http.Redirect(w, r, "/", http.StatusForbidden)
 		return
 	}
@@ -1109,6 +1148,7 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+
 func checkIfAdmin(userID int64) (bool, error) {
 	var role string
 	err := datahandlers.DB.QueryRow("SELECT role FROM users WHERE id = ?", userID).Scan(&role)
@@ -1116,6 +1156,68 @@ func checkIfAdmin(userID int64) (bool, error) {
 		return false, err
 	}
 	return role == "admin", nil
+}
+
+func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
+    userIDStr := strings.TrimPrefix(r.URL.Path, "/users/delete/")
+    userID, err := strconv.Atoi(userIDStr)
+    if err != nil {
+        utils.HandleErr(w, err, "Invalid user ID", http.StatusBadRequest)
+        return
+    }
+
+    // Kullanıcı bilgilerini alın
+    user, err := getUserByID(userID)
+    if err != nil {
+        utils.HandleErr(w, err, "User not found", http.StatusNotFound)
+        return
+    }
+
+    // Transaction başlat
+    tx, err := datahandlers.DB.Begin()
+    if err != nil {
+        utils.HandleErr(w, err, "Failed to begin transaction", http.StatusInternalServerError)
+        return
+    }
+
+    defer func() {
+        if r := recover(); r != nil {
+            tx.Rollback()
+            panic(r)
+        }
+    }()
+
+    // Kullanıcıyı users tablosundan sil
+    _, err = tx.Exec("DELETE FROM users WHERE id = ?", userID)
+    if err != nil {
+        tx.Rollback()
+        utils.HandleErr(w, err, "Failed to delete user", http.StatusInternalServerError)
+        return
+    }
+
+    // Kullanıcıyı banned_users tablosuna ekle
+    _, err = tx.Exec("INSERT INTO banned_users (email) VALUES (?)", user.Email)
+    if err != nil {
+        tx.Rollback()
+        utils.HandleErr(w, err, "Failed to ban user", http.StatusInternalServerError)
+        return
+    }
+
+    // Transaction'ı commit et
+    err = tx.Commit()
+    if err != nil {
+        utils.HandleErr(w, err, "Failed to commit transaction", http.StatusInternalServerError)
+        return
+    }
+
+    http.Redirect(w, r, "/admin", http.StatusSeeOther)
+}
+
+
+func checkIfBanned(email string) (bool, error) {
+	var exists bool
+	err := datahandlers.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM banned_users WHERE email = ?)", email).Scan(&exists)
+	return exists, err
 }
 
 // Kullanıcı bilgilerini güncelleyen handler

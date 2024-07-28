@@ -57,4 +57,5 @@ func Allhandlers() {
 	// Kullanıcı İşlemleri:
 	http.HandleFunc("/users/edit/", morehandlers.EditUserHandler)     // Kullanıcı düzenleme işlemi için işleyici
 	http.HandleFunc("/users/update/", homehandlers.UpdateUserHandler) // Kullanıcı güncelleme işlemi için işleyici
+	http.HandleFunc("/users/delete/", homehandlers.DeleteUserHandler)
 }
