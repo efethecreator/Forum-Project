@@ -49,7 +49,7 @@ func Allhandlers() {
 	http.HandleFunc("/deleteComment", posthandlers.DeleteCommentHandler)
 	http.HandleFunc("/vote", posthandlers.VoteHandler)
 	http.HandleFunc("/viewPost", posthandlers.ViewPostHandler)
-	http.HandleFunc("/reportPost", posthandlers.ReportPostHandler)
+	http.HandleFunc("/reportPost/{id}", posthandlers.ReportPostHandler)
 
 	// Profil İşlemleri:
 	http.HandleFunc("/myprofil", morehandlers.MyProfileHandler)
@@ -59,4 +59,7 @@ func Allhandlers() {
 	http.HandleFunc("/users/update/", homehandlers.UpdateUserHandler) // Kullanıcı güncelleme işlemi için işleyici
 	http.HandleFunc("/users/delete/", homehandlers.DeleteUserHandler)
 	http.HandleFunc("/posts/delete/", posthandlers.DeletePostHandler)
+
+	http.HandleFunc("/categories/add", homehandlers.AddCategoryHandler)
+	http.HandleFunc("/categories/delete/{id}", homehandlers.DeleteCategoryHandler)
 }

@@ -58,10 +58,16 @@ type RegisterTemplateData struct {
 }
 
 type AdminTemplateData struct {
-	Users    []User
-	Posts    []Post
-	LoggedIn bool
-	IsAdmin  bool
+	Users      []User
+	Posts      []Post
+	Categories []Category
+	LoggedIn   bool
+	IsAdmin    bool
+}
+
+type Category struct {
+	ID   int
+	Name string
 }
 
 var (
@@ -1108,14 +1114,14 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Admin olup olmadığını kontrol et
-	isAdmin, err := CheckIfAdmin(int64(session.UserID)) // int dönüşümü
+	// Check if the user is an admin
+	isAdmin, err := CheckIfAdmin(int64(session.UserID)) // int to int64 conversion
 	if err != nil || !isAdmin {
 		http.Redirect(w, r, "/", http.StatusForbidden)
 		return
 	}
 
-	// Veritabanından kullanıcılar ve gönderiler al
+	// Fetch users, posts, and categories from the database
 	users, err := getUsers()
 	if err != nil {
 		utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
@@ -1128,7 +1134,13 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Admin sayfası şablonunu işle
+	categories, err := getCategories()
+	if err != nil {
+		utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Render the admin page template
 	tmpl, err := template.ParseFiles("templates/admin.html")
 	if err != nil {
 		utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
@@ -1136,16 +1148,102 @@ func AdminHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := AdminTemplateData{
-		Users:    users,
-		Posts:    posts,
-		LoggedIn: session != nil,
-		IsAdmin:  isAdmin,
+		Users:      users,
+		Posts:      posts,
+		Categories: categories, // Pass categories to the template
+		LoggedIn:   session != nil,
+		IsAdmin:    isAdmin,
 	}
 
 	err = tmpl.Execute(w, data)
 	if err != nil {
 		utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
 	}
+}
+
+
+
+func AddCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	categoryName := r.FormValue("category_name")
+	if categoryName == "" {
+		http.Error(w, "Category name is required", http.StatusBadRequest)
+		return
+	}
+
+	_, err := datahandlers.DB.Exec("INSERT INTO categories (name) VALUES (?)", categoryName)
+	if err != nil {
+		utils.HandleErr(w, err, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+}
+
+func DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	// Sadece POST metodu izin ver
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Oturum bilgilerini al
+	session, err := datahandlers.GetSession(r)
+	if err != nil || session == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	// Kullanıcının admin veya moderator olup olmadığını kontrol et
+	isAdmin, err := CheckIfAdmin(int64(session.UserID))
+	if err != nil || !isAdmin {
+		http.Redirect(w, r, "/", http.StatusForbidden)
+		return
+	}
+
+	// Category ID'yi al
+	categoryID := strings.TrimPrefix(r.URL.Path, "/categories/delete/")
+	if categoryID == "" {
+		http.Error(w, "Category ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// SQL sorgusu ile kategoriyi sil
+	_, err = datahandlers.DB.Exec("DELETE FROM categories WHERE id = ?", categoryID)
+	if err != nil {
+		utils.HandleErr(w, err, "Failed to delete category", http.StatusInternalServerError)
+		return
+	}
+
+	// Başarı durumunda admin sayfasına yönlendir
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+}
+
+func getCategories() ([]Category, error) {
+	rows, err := datahandlers.DB.Query("SELECT id, name FROM categories")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching categories: %v", err)
+	}
+	defer rows.Close()
+
+	var categories []Category
+	for rows.Next() {
+		var category Category
+		if err := rows.Scan(&category.ID, &category.Name); err != nil {
+			return nil, fmt.Errorf("error scanning category: %v", err)
+		}
+		categories = append(categories, category)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %v", err)
+	}
+
+	return categories, nil
 }
 
 func CheckIfAdmin(userID int64) (bool, error) {
